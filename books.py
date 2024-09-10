@@ -1,5 +1,5 @@
-class Student:
-    def __init__(self, title, author):
+class Books:
+    def __init__(self):
         ...
 
     def borrow():
