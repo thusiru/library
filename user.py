@@ -1,9 +1,7 @@
 import bcrypt
-import sqlite3
-
-
-con = sqlite3.connect("library.db")
-cur = con.cursor()
+from db import get_db_connection, close_db_connection
+from print_color import print as printf
+from sqlite3 import IntegrityError
 
 
 class User:
@@ -12,37 +10,38 @@ class User:
 
     @classmethod
     def login(cls):
-        for i in range(4):
-            username, password = cls.__input_validate()
-            cur.execute("SELECT id, password FROM users WHERE username = ?", (username,))
+        con = get_db_connection()
+        cur = con.cursor()
+
+        for i in range(5):
+            try:
+                username, password = cls.__input_validate()
+            except ValueError as e:
+                printf(f"{e} {4-i} attemps left", color="red")
+                continue
+
+            cur.execute(
+                "SELECT id, password FROM users WHERE username = ?", (username,)
+            )
             result = cur.fetchone()
 
             if result:
                 user_id, hashword = result
                 password = password.encode("utf-8")
                 if bcrypt.checkpw(password, hashword):
-                    print("Login Successful!")
-                    con.close()
+                    printf("Login Successful!", color="green")
+                    close_db_connection()
                     return cls(user_id)
                 else:
-                    print(f"Invalid Password. {3-i} attempts left.")
+                    printf(f"Invalid Password. {4-i} attempts left.", color="red")
                     continue
             else:
-                print(f"Invalid Username. {3-i} attempts left.")
+                printf(f"Invalid Username. {4-i} attempts left.", color="red")
                 continue
-        print("Failed to login after 4 attempts.")
-        con.close()
-        return None
 
-    """@property
-    def user_id(self):
-        return self._user_id
-    
-    @user_id.setter
-    def user_id(self, user_id):
-        if not user_id:
-            raise NameError
-        self._user_id = user_id"""
+        printf("Failed to login after 5 attempts.", color="red")
+        close_db_connection
+        return None
 
     @staticmethod
     def __input_validate():
@@ -50,32 +49,45 @@ class User:
         password = input("Password: ")
 
         if not username:
-            raise ValueError("Username cannot be empty")
+            raise ValueError("Username cannot be empty.")
         if not password:
-            raise ValueError("Password cannot be empty")
+            raise ValueError("Password cannot be empty.")
         return username, password
 
     @staticmethod
     def register():
-        while True:
+        con = get_db_connection()
+        cur = con.cursor()
+
+        for _ in range(5):
             try:
                 username, password = User.__input_validate()
-                re_password = input("Re enter password: ")
+            except ValueError as e:
+                printf(e, color="red")
+                continue
 
-                if password == re_password:
-                    password = password.encode("utf-8")
-                    hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+            re_password = input("Re enter password: ")
 
-                    cur.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed))
+            if password == re_password:
+                password = password.encode("utf-8")
+                hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+
+                try:
+                    cur.execute(
+                        "INSERT INTO users (username, password) VALUES (?, ?)",
+                        (username, hashed),
+                    )
                     con.commit()
-
-                    print("User registration successful!")
-                    return
-
-                else:
-                    print("Password doesn't match")
+                except IntegrityError:
+                    printf("Username is not available", color="red")
                     continue
 
-            except sqlite3.IntegrityError:
-                print("Username is not available")
+                printf("User registration successful!", color="green")
+                close_db_connection()
+                return
+
+            else:
+                printf("Password doesn't match", color="red")
                 continue
+
+        printf("Registration failed after 5 attempts", color="red")
