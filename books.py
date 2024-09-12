@@ -1,4 +1,4 @@
-from db import get_db_connection, close_db_connection
+from db import get_db_connection
 
 
 class Books:
@@ -13,16 +13,15 @@ class Books:
     @staticmethod
     def search(title):
         """To look up books or resources in the library’s database or catalog by title, author, subject, or keyword to locate specific items."""
-        con = get_db_connection()
-        cur = con.cursor()
-        cur.execute(
-            "SELECT title, author, availability, return_date FROM books JOIN availability ON books.id = availability.book_id WHERE title LIKE ?",
-            ("%" + title + "%",),
-        )
-        results = cur.fetchall()
-        close_db_connection()
+        with get_db_connection() as con:
+            cur = con.cursor()
+            cur.execute(
+                "SELECT title, author, availability, return_date FROM books JOIN availability ON books.id = availability.book_id WHERE title LIKE ?",
+                ("%" + title + "%",),
+            )
+            results = cur.fetchall()
 
-        if results:
-            return results
-        else:
-            return None
+            if results:
+                return results
+            else:
+                return None
