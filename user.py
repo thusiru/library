@@ -14,11 +14,18 @@ class User:
             cur = con.cursor()
 
             for _ in range(5):
-                new_username = input("New username: ")
-                if not new_username:
-                    printf("Username cannot be empty.", color="red")
+                try:
+                    new_username = User.__input_username("New username: ")
+                except ValueError as e:
+                    printf(e, color="red")
                     continue
-                if new_username == input("Re enter new username: "):
+                try:
+                    re_new_username = User.__input_username("Re enter new username: ")
+                except ValueError:
+                    print(e, color="red")
+                    continue
+
+                if new_username == re_new_username:
                     try:
                         cur.execute(
                             "UPDATE users SET username = ? WHERE username = ?",
@@ -31,12 +38,52 @@ class User:
                     except IntegrityError:
                         printf("Username not availabe. Try another one.", color="red")
                         continue
+
                     printf("Username change successful.", color="green")
                     return
                 else:
                     printf("Username doesn't match.", color="red")
                     continue
-            printf("Username change unsuccessful after 5 attempts.", color="red")
+
+        printf("Username change unsuccessful after 5 attempts.", color="red")
+
+    def change_password(self):
+        with get_db_connection() as con:
+            cur = con.cursor()
+            result = cur.execute(
+                "SELECT password FROM users WHERE id = ?", (self.user_id,)
+            ).fetchone()
+            hashword = result[0]
+
+            for _ in range(5):
+                password = User.__input_password("Current Password: ")
+                byteword = password.encode("utf-8")
+
+                if bcrypt.checkpw(byteword, hashword):
+                    new_password = User.__input_password("New Password: ")
+                    re_new_password = User.__input_password("Re enter new password: ")
+
+                    if new_password == re_new_password:
+                        new_password = new_password.encode("utf=8")
+                        new_hashword = bcrypt.hashpw(new_password, bcrypt.gensalt())
+
+                        cur.execute(
+                            "UPDATE users SET password = ? WHERE id = ?",
+                            (
+                                new_hashword,
+                                self.user_id,
+                            ),
+                        )
+                        con.commit()
+
+                        printf("Password change successful.", color="green")
+                        return
+                    else:
+                        printf("Password doesn't match.", color="red")
+                else:
+                    printf("Wrong password.", color="red")
+
+        printf("Password change unsuccessful after 5 attemps.", color="red")
 
     @classmethod
     def login(cls):
@@ -45,7 +92,8 @@ class User:
 
             for i in range(5):
                 try:
-                    username, password = cls.__input_validate()
+                    username = cls.__input_username("Username: ")
+                    password = cls.__input_password("Password: ")
                 except ValueError as e:
                     printf(f"{e} {4-i} attemps left", color="red")
                     continue
@@ -57,8 +105,9 @@ class User:
 
                 if result:
                     user_id, hashword = result
-                    password = password.encode("utf-8")
-                    if bcrypt.checkpw(password, hashword):
+                    byteword = password.encode("utf-8")
+
+                    if bcrypt.checkpw(byteword, hashword):
                         printf("Login Successful!", color="green")
                         return cls(username, user_id)
                     else:
@@ -68,19 +117,28 @@ class User:
                     printf(f"Invalid Username. {4-i} attempts left.", color="red")
                     continue
 
-            printf("Failed to login after 5 attempts.", color="red")
-            return None
+        printf("Failed to login after 5 attempts.", color="red")
+        return None
 
     @staticmethod
-    def __input_validate():
-        username = input("Username: ")
-        password = input("Password: ")
-
+    def __input_username(prompt):
+        username = input(prompt).strip()
         if not username:
             raise ValueError("Username cannot be empty.")
+        if username.islower():
+            return username
+        else:
+            raise ValueError("Username must be lowercased.")
+
+    @staticmethod
+    def __input_password(prompt):
+        password = input(prompt).strip()
         if not password:
             raise ValueError("Password cannot be empty.")
-        return username, password
+        if len(password) >= 4:
+            return password
+        else:
+            raise ValueError("Password must be atleast 4 characters long.")
 
     @staticmethod
     def register():
@@ -89,21 +147,21 @@ class User:
 
             for _ in range(5):
                 try:
-                    username, password = User.__input_validate()
+                    username = User.__input_username("Username: ")
+                    password = User.__input_password("Password: ")
                 except ValueError as e:
                     printf(e, color="red")
                     continue
-
-                re_password = input("Re enter password: ")
+                re_password = User.__input_password("Re enter password: ")
 
                 if password == re_password:
                     password = password.encode("utf-8")
-                    hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+                    hashword = bcrypt.hashpw(password, bcrypt.gensalt())
 
                     try:
                         cur.execute(
                             "INSERT INTO users (username, password) VALUES (?, ?)",
-                            (username, hashed),
+                            (username, hashword),
                         )
                         con.commit()
                     except IntegrityError:
@@ -112,14 +170,11 @@ class User:
 
                     printf("User registration successful!", color="green")
                     return
-
                 else:
                     printf("Password doesn't match", color="red")
                     continue
 
-            printf(
-                "Registration failed after 5 attempts. Try again shortly.", color="red"
-            )
+        printf("Registration failed after 5 attempts. Try again shortly.", color="red")
 
     def __str__(self):
         return self.username
