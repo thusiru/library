@@ -1,6 +1,6 @@
 from books import Books
 from consolemenu import ConsoleMenu
-from consolemenu.items import FunctionItem, SubmenuItem, SelectionItem
+from consolemenu.items import FunctionItem, SubmenuItem
 from getpass import getpass
 from print_color import print as printf
 from time import sleep
@@ -80,8 +80,8 @@ def change_username(user):
 
 
 def change_password(user):
-    print(user.change_password())
-    continues
+    user.change_password()
+    continues()
 
 
 def search():
