@@ -121,26 +121,6 @@ class User:
         return None
 
     @staticmethod
-    def __input_username(prompt):
-        username = input(prompt).strip()
-        if not username:
-            raise ValueError("Username cannot be empty.")
-        if username.islower():
-            return username
-        else:
-            raise ValueError("Username must be lowercased.")
-
-    @staticmethod
-    def __input_password(prompt):
-        password = input(prompt).strip()
-        if not password:
-            raise ValueError("Password cannot be empty.")
-        if len(password) >= 4:
-            return password
-        else:
-            raise ValueError("Password must be atleast 4 characters long.")
-
-    @staticmethod
     def register():
         with get_db_connection() as con:
             cur = con.cursor()
@@ -175,6 +155,27 @@ class User:
                     continue
 
         printf("Registration failed after 5 attempts. Try again shortly.", color="red")
+
+    @staticmethod
+    def __input_username(prompt):
+        username = input(prompt).strip()
+        if not username:
+            raise ValueError("Username cannot be empty.")
+        if not username.islower():
+            raise ValueError("Username must be lowercased.")
+        else:
+            return username
+        
+    @staticmethod
+    def __input_password(prompt):
+        password = input(prompt).strip()
+        if not password:
+            raise ValueError("Password cannot be empty.")
+        if len(password) <= 4:
+            raise ValueError("Password must be atleast 4 characters long.")
+        if len(password) >= 16:
+            raise ValueError("Password must be equal or less than 16 characters.")
+        return password
 
     def __str__(self):
         return self.username
